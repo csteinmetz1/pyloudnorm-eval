@@ -1,6 +1,7 @@
 import os
 import sys
 import glob
+import argparse
 import subprocess
 import soundfile as sf
 import numpy as np
@@ -8,6 +9,7 @@ import numpy as np
 # import our loudness libraries
 import pyloudnorm as pyln
 import loudness_py.loudness 
+import essentia.standard
 
 def measure_pyloudnorm(data, sr, mode="default"):
     if mode == "default":
@@ -50,9 +52,29 @@ def measure_loudness_py(data, sr):
     loudness = loudness_py.loudness.calculate_loudness(data, sr)
     return loudness
 
+def measure_essentia(filepath):
+    loader = essentia.standard.AudioLoader(filename=filepath)
+    audio, sr, nchs, md5, bit_rate, codec = loader()
+
+    meter = essentia.standard.LoudnessEBUR128(sampleRate=sr, hopSize=0.1)
+    loudness = meter(audio)[2]
+
+    return loudness
+
 if __name__ == '__main__':
 
-    test_files = glob.glob(os.path.join("data", "*.wav"))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input")
+    args = parser.parse_args()
+
+    if os.path.isfile(args.input):
+        test_files = [args.input]
+    elif os.path.isdir(args.input):
+        test_files = glob.glob(os.path.join("data", "*.wav"))
+        test_files = sorted(test_files)
+    else:
+        raise RuntimeError(f"Invalid input: '{args.input}'")
+
     print(f"Found {len(test_files)} files.")
 
     results = []
@@ -67,6 +89,7 @@ if __name__ == '__main__':
         loudness_py_default = measure_loudness_py(data, int(sr))
         ffmpeg_default = measure_ffmpeg(test_file)
         loudness_scanner_ffmpeg = measure_loudness_scanner(test_file, plugin="ffmpeg")
+        essentia_default = measure_essentia(test_file)
 
         results.append({
             "file" : test_file,
@@ -75,6 +98,7 @@ if __name__ == '__main__':
             "loudness.py" : loudness_py_default,
             "ffmpeg" : ffmpeg_default,
             "loudness-scanner (ffmpeg)" : loudness_scanner_ffmpeg,
+            "essentia" : essentia_default,
         })
     
     for file_result in results:

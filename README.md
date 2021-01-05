@@ -3,9 +3,15 @@ Evaluation of a number of loudness meter implementations
 
 ## Setup
 
+### Install essentia (macOS)
+
+You will need homebrew.
 ```
-pip install -r requirements.txt
+brew tap MTG/essentia
+brew install essentia --HEAD
 ```
+
+For other platforms, please refer to the [essentia docs](https://essentia.upf.edu/documentation/installing.html).
 
 ### Install loudness.py
 
@@ -24,6 +30,14 @@ mkdir build
 cd build
 cmake ..
 make
+```
+
+In order to use essentia make sure you create an environment in the following manner.
+
+```
+python3 -m venv env/ --system-site-packages
+source env/bin/activate 
+pip install -r requirements.txt
 ```
 
 ## Run 
