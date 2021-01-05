@@ -3,8 +3,9 @@ import sys
 import glob
 import argparse
 import subprocess
-import soundfile as sf
 import numpy as np
+import soundfile as sf
+import matplotlib.pyplot as plt
 
 # import our loudness libraries
 import pyloudnorm as pyln
@@ -61,11 +62,81 @@ def measure_essentia(filepath):
 
     return loudness
 
+def run_freq_test(gain=-6, start=1, stop=24000, num_points=100, fs=48000, t=1.0):
+
+    freqs = np.linspace(start, stop, num=num_points)
+
+    if not os.path.isdir("data/freqs"):
+        os.makedirs("data/freqs")
+
+    results = {
+        "pyloudnorm (default)" : [],
+        "pyloudnorm (De Man)" : [],
+        "loudness.py" : [],
+        "ffmpeg" : [],
+        "loudness-scanner" : [],
+        "essentia" : [],
+    }
+
+    for idx, f in enumerate(freqs):
+        sys.stdout.write(f"* Evaluating {f:0.1f} Hz - {idx+1}/{len(freqs)}\r")
+        sys.stdout.flush()
+        samples = np.linspace(0, t, int(fs*t), endpoint=False)
+        signal = 10**(gain/20) * np.cos(2 * np.pi * f * samples)
+        test_file = os.path.join("data", "freqs", f"{f:0.1f}Hz--{gain:0.1f}dB.wav")
+        sf.write(test_file, signal, fs)
+        data, sr = sf.read(test_file)
+
+        pyloudnorm_default = measure_pyloudnorm(data, sr)
+        pyloudnorm_deman = measure_pyloudnorm(data, sr, mode="deman")
+        loudness_py_default = measure_loudness_py(data, int(sr))
+        ffmpeg_default = measure_ffmpeg(test_file)
+        loudness_scanner_ffmpeg = measure_loudness_scanner(test_file, plugin="ffmpeg")
+        essentia_default = measure_essentia(test_file)
+    
+        results["pyloudnorm (default)"].append(pyloudnorm_default)
+        results["pyloudnorm (De Man)"].append(pyloudnorm_deman)
+        results["loudness.py"].append(loudness_py_default)
+        results["ffmpeg"].append(ffmpeg_default)
+        results["loudness-scanner"].append(loudness_scanner_ffmpeg)
+        results["essentia"].append(essentia_default)
+
+    fig, ax = plt.subplots()
+
+    for key, val in results.items():
+        plt.plot(freqs, val, label=key)
+
+    plt.grid()
+    plt.legend()
+
+    plt.xlim([1,10])
+    plt.savefig("1Hz-10Hz.png")
+
+    ax = plt.gca()
+    ax.relim()   
+    ax.autoscale()
+    plt.xlim([1000,4000])
+    plt.ylim([-8,-5.5])
+    plt.savefig("1kHz-4kHz.png")
+
+    ax = plt.gca()
+    ax.relim()   
+    ax.autoscale()
+    plt.xlim([20000,24000])
+    plt.ylim([-10,-2])
+    plt.savefig("20kHz-24kHz.png")
+
+
+
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("input")
+    parser.add_argument("-i", "--input", help="Path to file or directory of files to measure", type=str)
+    parser.add_argument("-f", "--freq", help="Frequnecy response test.", action="store_true")
     args = parser.parse_args()
+
+    if args.freq:
+        run_freq_test()
 
     if os.path.isfile(args.input):
         test_files = [args.input]
