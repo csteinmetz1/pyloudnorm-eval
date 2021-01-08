@@ -3,68 +3,90 @@ import sys
 import glob
 import time
 import argparse
-import subprocess
 import numpy as np
-import soundfile as sf
 import matplotlib.pyplot as plt
 
-# import our loudness libraries
-import pyloudnorm as pyln
-import loudness_py.loudness 
-import essentia.standard
+from measure import *
 
-def measure_pyloudnorm(filepath, mode="default"):
-    data, sr = sf.read(filepath)
+def run_timings(test_file, duration_sec, n_iters=1):
 
-    if mode == "default":
-        meter = pyln.Meter(sr)
-    elif mode == "deman":
-        meter = pyln.Meter(sr, filter_class="DeMan")
+    pyloudnorm_default_time = 0
+    pyloudnorm_deman_time = 0 
+    loudness_py_default_time = 0
+    ffmpeg_default_time = 0
+    loudness_scanner_ffmpeg_time = 0
+    essentia_default_time = 0
 
-    loudness = meter.integrated_loudness(data)
-    return loudness
+    for n in np.arange(n_iters):
 
-def measure_ffmpeg(filepath):
-    ffmpeg_command = ["ffmpeg", "-i", filepath, "-af", "loudnorm=print_format=summary", "-f", "null", "-"]
+        sys.stdout.write(f" {n+1}/{n_iters}\r")
+        sys.stdout.flush()
+        tic = time.perf_counter()
+        pyloudnorm_default = measure_pyloudnorm(test_file)
+        toc = time.perf_counter()
+        pyloudnorm_default_time += toc-tic
 
-    pipe = subprocess.run(ffmpeg_command,
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE,
-                       bufsize=10**8)
+        tic = time.perf_counter()
+        pyloudnorm_deman = measure_pyloudnorm(test_file, mode="deman")
+        toc = time.perf_counter()
+        pyloudnorm_deman_time += toc-tic
 
-    # parse loudness value
-    val = str(pipe.stderr.decode("utf-8") ).split('\n')
-    loudness = [v for v in val if "Input Integrated" in v][0]
-    loudness = float(loudness.split(' ')[-2])
-    return loudness
+        tic = time.perf_counter()
+        loudness_py_default = measure_loudness_py(test_file)
+        toc = time.perf_counter()
+        loudness_py_default_time += toc-tic
 
-def measure_loudness_scanner(filepath, plugin='ffmpeg'):
-    loudness_command = ["./loudness-scanner/build/loudness", "scan", f"--force-plugin={plugin}", filepath]
+        tic = time.perf_counter()
+        ffmpeg_default = measure_ffmpeg(test_file)
+        toc = time.perf_counter()
+        ffmpeg_default_time += toc-tic
 
-    pipe = subprocess.run(loudness_command,
-                       stdout=subprocess.PIPE,
-                       stderr=subprocess.PIPE,
-                       bufsize=10**8)
+        tic = time.perf_counter()
+        loudness_scanner_ffmpeg = measure_loudness_scanner(test_file, plugin="ffmpeg")
+        toc = time.perf_counter()
+        loudness_scanner_ffmpeg_time += toc-tic
 
-    # debug
-    val = str(pipe.stdout.decode("utf-8"))
-    val = val.split()[0]
-    loudness = float(val)
-    return loudness
+        tic = time.perf_counter()
+        essentia_default = measure_essentia(test_file)
+        toc = time.perf_counter()
+        essentia_default_time += toc-tic
 
-def measure_loudness_py(filepath):
-    data, sr = sf.read(filepath)
-    loudness = loudness_py.loudness.calculate_loudness(data, int(sr))
-    return loudness
+    pyloudnorm_default_time /= n_iters
+    pyloudnorm_deman_time /= n_iters 
+    loudness_py_default_time /= n_iters
+    ffmpeg_default_time /= n_iters
+    loudness_scanner_ffmpeg_time /= n_iters
+    essentia_default_time /= n_iters
 
-def measure_essentia(filepath):
-    loader = essentia.standard.AudioLoader(filename=filepath)
-    audio, sr, nchs, md5, bit_rate, codec = loader()
+    result = {
+        "file" : test_file,
+        "pyloudnorm (default)" : 
+            {"dB LUFS" : pyloudnorm_default,
+                "time" : pyloudnorm_default_time,
+                "RTF" : duration_sec / pyloudnorm_default_time},
+        "pyloudnorm (De Man)" : 
+            {"dB LUFS" : pyloudnorm_deman,
+                "time" : pyloudnorm_deman_time,
+                "RTF" : duration_sec / pyloudnorm_deman_time},
+        "loudness.py" :
+            {"dB LUFS" : loudness_py_default,
+                "time" : loudness_py_default_time,
+                "RTF" : duration_sec / loudness_py_default_time},
+        "ffmpeg" : 
+            {"dB LUFS" : ffmpeg_default,
+                "time" : ffmpeg_default_time,
+                "RTF" : duration_sec / ffmpeg_default_time},
+        "loudness-scanner" : 
+            {"dB LUFS" : loudness_scanner_ffmpeg,
+                "time" : loudness_scanner_ffmpeg_time,
+                "RTF" : duration_sec / loudness_scanner_ffmpeg_time},
+        "essentia" :
+            {"dB LUFS" : essentia_default,
+                "time" : essentia_default_time,
+                "RTF" : duration_sec / essentia_default_time},
+    }
 
-    meter = essentia.standard.LoudnessEBUR128(sampleRate=sr, hopSize=0.1)
-    loudness = meter(audio)[2]
-
-    return loudness
+    return result
 
 def print_result(result):
     print(result["file"])
@@ -73,6 +95,47 @@ def print_result(result):
         if key != "file":
             print(f"{key:22s}  {val['dB LUFS']: 2.2f} dB LUFS   {val['time']*1e3: 4.1f} ms    {val['RTF']:0.2f}x ")
     print()
+
+def run_speed_test(n_iters=100, sample_rate=48e3):
+
+    # we test at time durations of 
+    # 1 sec, 10 sec, 30 sec, 1 min, 5 min
+
+    if not os.path.isdir("data/noise"):
+        os.makedirs("data/noise")
+
+    durations = [1, 10, 30, 60, 5*60]
+    results = []
+
+    for duration_sec in durations:
+        print(f"Timing {duration_sec} sec")
+        samples = int(duration_sec * sample_rate)
+        signal = (np.random.rand(samples, 2) * 2) - 1
+
+        test_file = os.path.join("data", "noise", f"{duration_sec:0.1f}_sec.wav")
+        sf.write(test_file, signal, int(sample_rate))
+
+        result = run_timings(test_file, duration_sec, n_iters)
+        results.append(result)
+
+    RTFs = {
+        "pyloudnorm (default)" : [],
+        "pyloudnorm (De Man)" : [],
+        "loudness.py" : [],
+        "ffmpeg" : [],
+        "loudness-scanner" : [],
+        "essentia" : [],
+    }
+
+    for file_result in results:
+        print_result(file_result)
+
+        for key, val in file_result.items():
+            if key != "file":
+                RTFs[key].append(val["RTF"])
+
+    for impl, RTFs in RTFs.items():
+        print(f"{impl:22s} RTF: mean {np.mean(RTFs):2.2f}x  std {np.std(RTFs):2.2f}")
 
 def run_freq_test(gain=-6, start=1, stop=24000, num_points=100, fs=48000, t=10.0):
 
@@ -177,12 +240,15 @@ if __name__ == '__main__':
     parser.add_argument("-f", "--freq", help="Frequnecy response test.", action="store_true")
     parser.add_argument("-n", "--num", help="Number of iterations to run over files for timings.", type=int, default=1)
     parser.add_argument("-p", "--points", help="Number of points (sinusoids) to evaluate models.", type=int, default=150)
-
+    parser.add_argument("-s", "--speed", help="Perform speed benchmark.", action="store_true")
 
     args = parser.parse_args()
 
     if args.freq:
         run_freq_test(num_points=args.points)
+
+    if args.speed:
+        run_speed_test()
 
     if os.path.isfile(args.input):
         test_files = [args.input]
@@ -206,63 +272,7 @@ if __name__ == '__main__':
         data, sr = sf.read(test_file)
         duration_sec = (data.shape[0]/sr)
 
-        tic = time.perf_counter()
-        pyloudnorm_default = measure_pyloudnorm(test_file)
-        toc = time.perf_counter()
-        pyloudnorm_default_time = toc-tic
-
-        tic = time.perf_counter()
-        pyloudnorm_deman = measure_pyloudnorm(test_file, mode="deman")
-        toc = time.perf_counter()
-        pyloudnorm_deman_time = toc-tic
-
-        tic = time.perf_counter()
-        loudness_py_default = measure_loudness_py(test_file)
-        toc = time.perf_counter()
-        loudness_py_default_time = toc-tic
-
-        tic = time.perf_counter()
-        ffmpeg_default = measure_ffmpeg(test_file)
-        toc = time.perf_counter()
-        ffmpeg_default_time = toc-tic
-
-        tic = time.perf_counter()
-        loudness_scanner_ffmpeg = measure_loudness_scanner(test_file, plugin="ffmpeg")
-        toc = time.perf_counter()
-        loudness_scanner_ffmpeg_time = toc-tic
-
-        tic = time.perf_counter()
-        essentia_default = measure_essentia(test_file)
-        toc = time.perf_counter()
-        essentia_default_time = toc-tic
-
-        result = {
-            "file" : test_file,
-            "pyloudnorm (default)" : 
-                {"dB LUFS" : pyloudnorm_default,
-                 "time" : pyloudnorm_default_time,
-                 "RTF" : duration_sec / pyloudnorm_default_time},
-            "pyloudnorm (De Man)" : 
-                {"dB LUFS" : pyloudnorm_deman,
-                 "time" : pyloudnorm_deman_time,
-                 "RTF" : duration_sec / pyloudnorm_deman_time},
-            "loudness.py" :
-                {"dB LUFS" : loudness_py_default,
-                 "time" : loudness_py_default_time,
-                 "RTF" : duration_sec / loudness_py_default_time},
-            "ffmpeg" : 
-                {"dB LUFS" : ffmpeg_default,
-                 "time" : ffmpeg_default_time,
-                 "RTF" : duration_sec / ffmpeg_default_time},
-            "loudness-scanner" : 
-                {"dB LUFS" : loudness_scanner_ffmpeg,
-                 "time" : loudness_scanner_ffmpeg_time,
-                 "RTF" : duration_sec / loudness_scanner_ffmpeg_time},
-            "essentia" :
-                {"dB LUFS" : essentia_default,
-                 "time" : essentia_default_time,
-                 "RTF" : duration_sec / essentia_default_time},
-        }
+        result = run_timings(test_file, duration_sec)
 
         results.append(result)
         print_result(result)
