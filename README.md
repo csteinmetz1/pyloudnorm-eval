@@ -47,3 +47,12 @@ Now run the evaluation, which will measure the loudness of all files in the `dat
 ```
 python eval.py
 ```
+
+Optionally, you can run the fine-detail frequency test,
+```
+python eval.py -f
+```
+of the speed test to produce timings on your platform.
+```
+python eval.py -s 
+```
