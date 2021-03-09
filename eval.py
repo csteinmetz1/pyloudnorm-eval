@@ -137,7 +137,13 @@ def run_speed_test(n_iters=100, sample_rate=48e3):
     for impl, RTFs in RTFs.items():
         print(f"{impl:22s} RTF: mean {np.mean(RTFs):2.2f}x  std {np.std(RTFs):2.2f}")
 
-def run_freq_test(gain=-6, start=1, stop=24000, num_points=100, fs=48000, t=10.0):
+def run_freq_test(gain=-6, 
+                  start=1, 
+                  stop=24000, 
+                  num_points=100, 
+                  fs=48000, 
+                  t=10.0, 
+                  figdir="figures/"):
 
     freqs = np.linspace(start, stop, num=num_points)
     freqs = np.logspace(0, 4, num=num_points) * 2.40
@@ -178,7 +184,7 @@ def run_freq_test(gain=-6, start=1, stop=24000, num_points=100, fs=48000, t=10.0
         results["loudness-scanner"].append(loudness_scanner_ffmpeg)
         results["essentia"].append(essentia_default)
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(5,3))
     mean = None
 
     for key, val in results.items():
@@ -191,25 +197,37 @@ def run_freq_test(gain=-6, start=1, stop=24000, num_points=100, fs=48000, t=10.0
 
     plt.grid()
     plt.legend()
-    plt.savefig("1Hz-24kHz.png")
+    plt.ylabel('Loudness (dB LUFS)')
+    plt.xlabel('Frequency (Hz)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(figdir, "1Hz-24kHz.pdf"))
 
-    plt.xlim([4,20])
+    plt.xlim([4,30])
     plt.ylim([-45,-20])
-    plt.savefig("1Hz-10Hz.png")
+    plt.ylabel('Loudness (dB LUFS)')
+    plt.xlabel('Frequency (Hz)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(figdir, "4Hz-30Hz.pdf"))
 
     ax = plt.gca()
     ax.relim()   
     ax.autoscale()
     plt.xlim([1000,1500])
     plt.ylim([-9,-7.5])
-    plt.savefig("1kHz-1.5kHz.png")
+    plt.ylabel('Loudness (dB LUFS)')
+    plt.xlabel('Frequency (Hz)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(figdir, "1kHz-1.5kHz.pdf"))
 
     ax = plt.gca()
     ax.relim()   
     ax.autoscale()
+    plt.ylabel('Loudness (dB LUFS)')
+    plt.xlabel('Frequency (Hz)')
     plt.xlim([20000,24000])
     plt.ylim([-10,-2])
-    plt.savefig("20kHz-24kHz.png")
+    plt.tight_layout()
+    plt.savefig(os.path.join(figdir, "20kHz-24kHz.pdf"))
 
     plt.close('all')
 
@@ -224,19 +242,25 @@ def run_freq_test(gain=-6, start=1, stop=24000, num_points=100, fs=48000, t=10.0
     plt.grid()
     plt.legend()
     plt.xlim([4,10])
-    plt.savefig("1Hz-10Hz-mean-deviation.png")
+    plt.ylabel('Loudness (dB LUFS)')
+    plt.xlabel('Frequency (Hz)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(figdir, "1Hz-10Hz-mean-deviation.pdf"))
 
     ax = plt.gca()
     ax.relim()   
     ax.autoscale()
     plt.xlim([20,10000])
     plt.ylim([-0.2,0.2])
-    plt.savefig("20Hz-10kHz-mean-deviation.png")
+    plt.ylabel('Loudness (dB LUFS)')
+    plt.xlabel('Frequency (Hz)')
+    plt.tight_layout()
+    plt.savefig(os.path.join(figdir, "20Hz-10kHz-mean-deviation.pdf"))
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", help="Path to file or directory of files to measure", type=str)
+    parser.add_argument("-i", "--input", help="Path to file or directory of files to measure", type=str, default='data/')
     parser.add_argument("-f", "--freq", help="Frequnecy response test.", action="store_true")
     parser.add_argument("-n", "--num", help="Number of iterations to run over files for timings.", type=int, default=1)
     parser.add_argument("-p", "--points", help="Number of points (sinusoids) to evaluate models.", type=int, default=150)
