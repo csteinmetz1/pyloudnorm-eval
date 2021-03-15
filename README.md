@@ -3,7 +3,7 @@
 # pyloudnorm-eval
 Evaluation of a number of loudness meter implementations.
 
-[Code (pyloudnorm)](https://github.com/csteinmetz1/pyloudnorm) | [Paper](paper/pyloudnorm_preprint.pdf) | [Video]()
+[Code (pyloudnorm)](https://github.com/csteinmetz1/pyloudnorm) | [Paper](https://csteinmetz1.github.io/pyloudnorm-eval/paper/pyloudnorm_preprint.pdf) | [Video]()
 
 </div>
 
