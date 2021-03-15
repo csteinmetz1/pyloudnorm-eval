@@ -152,7 +152,7 @@ def run_freq_test(gain=-6,
         os.makedirs("data/freqs")
 
     results = {
-        "pyloudnorm (default)" : [],
+        "pyloudnorm (Default)" : [],
         "pyloudnorm (De Man)" : [],
         "loudness.py" : [],
         "ffmpeg" : [],
@@ -177,7 +177,7 @@ def run_freq_test(gain=-6,
         loudness_scanner_ffmpeg = measure_loudness_scanner(test_file, plugin="ffmpeg")
         essentia_default = measure_essentia(test_file)
     
-        results["pyloudnorm (default)"].append(pyloudnorm_default)
+        results["pyloudnorm (Default)"].append(pyloudnorm_default)
         results["pyloudnorm (De Man)"].append(pyloudnorm_deman)
         results["loudness.py"].append(loudness_py_default)
         results["ffmpeg"].append(ffmpeg_default)
