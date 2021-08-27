@@ -3,7 +3,7 @@ import soundfile as sf
 
 # import our loudness libraries
 import pyloudnorm as pyln
-import loudness_py.loudness 
+import loudness_py.loudness
 import essentia.standard
 
 def measure_pyloudnorm(filepath, mode="default"):

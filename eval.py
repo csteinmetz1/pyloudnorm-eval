@@ -19,8 +19,8 @@ def run_timings(test_file, duration_sec, n_iters=1):
 
     for n in np.arange(n_iters):
 
-        sys.stdout.write(f" {n+1}/{n_iters}\r")
-        sys.stdout.flush()
+        #sys.stdout.write(f" {n+1}/{n_iters}\r")
+        #sys.stdout.flush()
         tic = time.perf_counter()
         pyloudnorm_default = measure_pyloudnorm(test_file)
         toc = time.perf_counter()
