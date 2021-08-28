@@ -3,7 +3,7 @@
 # pyloudnorm-eval
 Evaluation of a number of loudness meter implementations.
 
-[Code (pyloudnorm)](https://github.com/csteinmetz1/pyloudnorm) | [Paper](https://csteinmetz1.github.io/pyloudnorm-eval/paper/pyloudnorm_preprint.pdf) | [Video]()
+[Code (pyloudnorm)](https://github.com/csteinmetz1/pyloudnorm) | [Paper](https://csteinmetz1.github.io/pyloudnorm-eval/paper/pyloudnorm_preprint.pdf) | [Video](https://www.youtube.com/watch?v=krSJpQ3d4gE)
 
 </div>
 
@@ -72,3 +72,12 @@ of the speed test to produce timings on your platform.
 ```
 python eval.py -s 
 ```
+
+## Citation
+If you use pyloudnorm or this evaluation in your work please consider citing us.
+
+@inproceedings{steinmetz2021pyloudnorm,
+        title={pyloudnorm: {A} simple yet flexible loudness meter in Python},
+        author={Steinmetz, Christian J. and Reiss, Joshua D.},
+        booktitle={150th AES Convention}
+        year={2021}}
